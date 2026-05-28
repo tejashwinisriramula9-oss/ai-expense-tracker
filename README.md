@@ -93,7 +93,7 @@ MongoDB Atlas was used to store user information, transactions, budgets, and sav
 ## Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/ai-expense-tracker.git
+git clone https://github.com/tejashwinisriramula9-oss/ai-expense-tracker.git
 ```
 
 ## Navigate to Project Directory
