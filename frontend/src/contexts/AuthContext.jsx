@@ -63,9 +63,10 @@ export function AuthProvider({ children }) {
       if (error.response?.data?.needsVerification) {
         toast.error('Please verify your email before logging in.')
         navigate('/verify-email', { state: { email: error.response.data.email } })
-        return
+        return  // don't re-throw — handled by navigation
       }
       toast.error(error.userMessage || 'Login failed')
+      throw error  // re-throw so Login.jsx can check error.isWakeUp
     } finally {
       setAuthLoading(false)
     }
@@ -84,6 +85,7 @@ export function AuthProvider({ children }) {
       navigate('/verify-email', { state: { email: response.data.email || email, emailError } })
     } catch (error) {
       toast.error(error.userMessage || 'Registration failed')
+      throw error  // re-throw so Signup.jsx can check error.isWakeUp
     } finally {
       setAuthLoading(false)
     }

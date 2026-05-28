@@ -54,13 +54,9 @@ export default function Login() {
       await login(email, password)
       clearWake()
     } catch (err) {
-      const isNetworkOrTimeout =
-        err?.code === 'ECONNABORTED' ||
-        err?.message === 'Network Error' ||
-        err?.message?.includes('timeout') ||
-        !err?.response
-
-      if (isNetworkOrTimeout) {
+      // Only show "waking up" UX for genuine cold-start timeouts
+      // NOT for wrong password, CORS errors, or config issues
+      if (err?.isWakeUp === true) {
         setWaking(true); setPhaseIndex(0)
         startPhaseAdvance()
         startCountdown(12, async () => {
@@ -69,6 +65,7 @@ export default function Login() {
           await attemptLogin()
         })
       } else {
+        // Real error — toast already shown by AuthContext, just stop waking
         clearWake()
       }
     }

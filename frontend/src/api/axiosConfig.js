@@ -1,21 +1,24 @@
 import axios from 'axios'
 
-// ---------------------------------------------------------------------------
-// VITE_API_URL is set in Vercel → Project Settings → Environment Variables.
-// It must be the full Render URL with NO trailing slash.
-// e.g.  VITE_API_URL=https://ai-expense-tracker-api.onrender.com
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────
+// VITE_API_URL must be set in Vercel → Project Settings → Environment Variables
+// Value: https://your-service.onrender.com  (no trailing slash)
+//
+// If missing, the build falls back to localhost which WILL FAIL in production.
+// ─────────────────────────────────────────────────────────────
 const RAW_URL = import.meta.env.VITE_API_URL || ''
 const API_BASE_URL = RAW_URL.replace(/\/+$/, '') || 'http://localhost:5000'
 
-// Always log in production so Vercel function logs show the real URL being used
+// Log the URL on every page load — visible in browser DevTools console
 console.log('[API] base URL:', API_BASE_URL)
+console.log('[API] env VITE_API_URL:', import.meta.env.VITE_API_URL || 'NOT SET — falling back to localhost')
 
 if (!import.meta.env.VITE_API_URL) {
-  console.warn(
-    '[API] ⚠️  VITE_API_URL is not set. ' +
-    'Add it in Vercel → Project Settings → Environment Variables. ' +
-    'Falling back to localhost — this will fail in production.',
+  console.error(
+    '[API] ❌ VITE_API_URL is NOT set in Vercel environment variables.\n' +
+    'Go to: Vercel → Project → Settings → Environment Variables\n' +
+    'Add: VITE_API_URL = https://your-render-service.onrender.com\n' +
+    'Then redeploy. Without this, ALL API calls will fail in production.'
   )
 }
 
@@ -23,18 +26,14 @@ const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: false,
-  // 30-second timeout — handles Render free-tier cold start (can take ~20s)
-  timeout: 30000,
+  timeout: 35000,  // 35s — Render free tier cold start can take ~25s
 })
 
 // ── Request interceptor ───────────────────────────────────────
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('expense-token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    // Log every request in all environments
+    if (token) config.headers.Authorization = `Bearer ${token}`
     console.log(`[API →] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`)
     return config
   },
@@ -51,21 +50,34 @@ api.interceptors.response.use(
     const status  = error.response?.status
     const url     = error.config?.url ?? '?'
     const method  = error.config?.method?.toUpperCase() ?? '?'
-    const message = error.response?.data?.message || error.message || 'Unknown error'
+    const backendMsg = error.response?.data?.message
 
-    // Detect Render cold-start timeout specifically
+    // Classify the error precisely
     const isTimeout = error.code === 'ECONNABORTED' || error.message?.includes('timeout')
-    const isNetwork = error.message === 'Network Error' || !error.response
+    const isNetwork = !error.response && (error.message === 'Network Error' || error.code === 'ERR_NETWORK')
 
     if (isTimeout) {
-      console.error(`[API TIMEOUT] ${method} ${url} — backend may be waking up, please retry`)
+      console.error(`[API TIMEOUT] ${method} ${url} — took >35s, backend cold-starting`)
       error.userMessage = 'Server is waking up — please wait a moment and try again.'
+      error.isWakeUp = true
     } else if (isNetwork) {
-      console.error(`[API NETWORK ERROR] ${method} ${url} — no response from server`)
-      error.userMessage = 'Cannot reach the server. Check your connection and try again.'
+      // Network error in production almost always means VITE_API_URL is wrong
+      const isLocalhost = API_BASE_URL.includes('localhost')
+      console.error(`[API NETWORK ERROR] ${method} ${url}`)
+      console.error(`[API] baseURL = ${API_BASE_URL}`)
+      if (isLocalhost) {
+        console.error('[API] ❌ Calling localhost in production! Set VITE_API_URL in Vercel.')
+        error.userMessage = 'Configuration error: API URL not set. Contact support.'
+      } else {
+        console.error('[API] Backend unreachable — CORS issue or backend down')
+        error.userMessage = 'Cannot reach the server. Please try again.'
+      }
+      error.isWakeUp = false
     } else {
-      console.error(`[API ERROR] ${status} ${method} ${url} — ${message}`)
-      error.userMessage = message
+      // Real HTTP error — use backend message directly
+      console.error(`[API ERROR] ${status} ${method} ${url} — ${backendMsg || error.message}`)
+      error.userMessage = backendMsg || error.message || 'Something went wrong.'
+      error.isWakeUp = false
     }
 
     return Promise.reject(error)

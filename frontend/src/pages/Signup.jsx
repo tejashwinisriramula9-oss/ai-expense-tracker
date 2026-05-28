@@ -55,13 +55,7 @@ export default function Signup() {
       await register(name, email, password)
       clearWake()
     } catch (err) {
-      const isNetworkOrTimeout =
-        err?.code === 'ECONNABORTED' ||
-        err?.message === 'Network Error' ||
-        err?.message?.includes('timeout') ||
-        !err?.response
-
-      if (isNetworkOrTimeout) {
+      if (err?.isWakeUp === true) {
         setWaking(true); setPhaseIndex(0)
         startPhaseAdvance()
         startCountdown(12, async () => {

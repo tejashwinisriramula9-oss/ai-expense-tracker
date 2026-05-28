@@ -8,7 +8,17 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    // Warn only above 1 MB — our bundle is ~580 KB which is fine
     chunkSizeWarningLimit: 1000,
+    // Split vendor chunks to reduce peak memory during build
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor':  ['react', 'react-dom', 'react-router-dom'],
+          'chart-vendor':  ['chart.js', 'react-chartjs-2'],
+          'motion-vendor': ['framer-motion'],
+          'ui-vendor':     ['react-hot-toast', 'react-csv', 'axios'],
+        },
+      },
+    },
   },
 })
