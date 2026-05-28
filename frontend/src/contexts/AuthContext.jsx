@@ -75,8 +75,13 @@ export function AuthProvider({ children }) {
     setAuthLoading(true)
     try {
       const response = await api.post('/auth/register', { name, email, password })
-      toast.success('Account created! Check your email for the verification code.')
-      navigate('/verify-email', { state: { email: response.data.email || email } })
+      const emailError = response.data.emailError === true
+      if (emailError) {
+        toast.error('Account created but email failed. Use Resend OTP on the next page.')
+      } else {
+        toast.success('Account created! Check your email for the verification code.')
+      }
+      navigate('/verify-email', { state: { email: response.data.email || email, emailError } })
     } catch (error) {
       toast.error(error.userMessage || 'Registration failed')
     } finally {

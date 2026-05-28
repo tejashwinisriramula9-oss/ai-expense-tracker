@@ -2,6 +2,7 @@ import express from 'express'
 import mongoose from 'mongoose'
 import cors from 'cors'
 import { config } from './config/config.js'
+import { verifyEmailTransporter } from './utils/email.js'
 import authRoutes        from './routes/authRoutes.js'
 import transactionRoutes from './routes/transactionRoutes.js'
 import budgetRoutes      from './routes/budgetRoutes.js'
@@ -110,10 +111,14 @@ app.use(errorHandler)
 // ── MongoDB connection ────────────────────────────────────────
 console.log('[DB] Connecting to MongoDB Atlas…')
 mongoose.connect(config.mongodbUri, {
-  serverSelectionTimeoutMS: 10000,  // fail fast if Atlas unreachable
+  serverSelectionTimeoutMS: 10000,
   socketTimeoutMS: 45000,
 })
-  .then(() => console.log('[DB] MongoDB connected successfully'))
+  .then(() => {
+    console.log('[DB] MongoDB connected successfully')
+    // Verify email transporter after DB connects — logs result clearly
+    verifyEmailTransporter()
+  })
   .catch((err) => {
     console.error('[DB] MongoDB connection failed:', err?.message || err)
     // Exit so Render restarts the service — a DB-less backend is useless

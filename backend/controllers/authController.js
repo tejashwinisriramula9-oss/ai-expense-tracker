@@ -47,12 +47,19 @@ export const register = async (req, res) => {
     if (emailConfigured()) {
       try {
         await sendVerificationEmail(user.email, user.name, otp)
+        console.log(`[AUTH] Verification OTP sent to ${user.email}`)
       } catch (emailErr) {
         console.error('[AUTH] Failed to send verification email:', emailErr.message)
-        // Don't fail registration if email fails — user can resend
+        // Account is created but email failed — tell the frontend so user can resend
+        return res.status(201).json({
+          message: 'Account created but verification email failed to send. Use "Resend OTP" on the next page.',
+          userId: user._id,
+          email: user.email,
+          emailError: true,
+        })
       }
     } else {
-      console.warn('[AUTH] EMAIL_USER/EMAIL_PASS not set — skipping verification email. OTP:', otp)
+      console.warn(`[AUTH] Email not configured — skipping send. OTP for ${user.email}: ${otp}`)
     }
 
     res.status(201).json({
@@ -119,9 +126,15 @@ export const resendOTP = async (req, res) => {
     await user.save()
 
     if (emailConfigured()) {
-      await sendVerificationEmail(user.email, user.name, otp)
+      try {
+        await sendVerificationEmail(user.email, user.name, otp)
+        console.log(`[AUTH] Resent OTP to ${user.email}`)
+      } catch (emailErr) {
+        console.error('[AUTH] Failed to resend OTP:', emailErr.message)
+        return res.status(500).json({ message: 'Failed to send OTP email. Please try again in a moment.' })
+      }
     } else {
-      console.warn('[AUTH] Resend OTP (no email config). OTP:', otp)
+      console.warn(`[AUTH] Email not configured — OTP for ${user.email}: ${otp}`)
     }
 
     res.json({
@@ -195,9 +208,15 @@ export const forgotPassword = async (req, res) => {
     const resetUrl = `${config.frontendUrl}/reset-password?token=${token}&email=${encodeURIComponent(user.email)}`
 
     if (emailConfigured()) {
-      await sendPasswordResetEmail(user.email, user.name, resetUrl)
+      try {
+        await sendPasswordResetEmail(user.email, user.name, resetUrl)
+        console.log(`[AUTH] Password reset email sent to ${user.email}`)
+      } catch (emailErr) {
+        console.error('[AUTH] Failed to send reset email:', emailErr.message)
+        return res.status(500).json({ message: 'Failed to send reset email. Please try again.' })
+      }
     } else {
-      console.warn('[AUTH] Forgot password (no email config). Reset URL:', resetUrl)
+      console.warn('[AUTH] Email not configured — reset URL:', resetUrl)
     }
 
     res.json({

@@ -11,6 +11,7 @@ export default function VerifyEmail() {
 
   // Email passed from signup via navigation state
   const [email,    setEmail]    = useState(location.state?.email || '')
+  const [emailErr, setEmailErr] = useState(location.state?.emailError || false)
   const [otp,      setOtp]      = useState(['', '', '', '', '', ''])
   const [loading,  setLoading]  = useState(false)
   const [resending, setResending] = useState(false)
@@ -103,6 +104,24 @@ export default function VerifyEmail() {
           <span className="font-medium text-white">{email || 'your email'}</span>.
           Enter it below to activate your account.
         </p>
+
+        {/* Email delivery warning */}
+        {emailErr && (
+          <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-950/20 px-4 py-3">
+            <p className="text-xs font-medium text-amber-300">⚠️ Email delivery failed</p>
+            <p className="mt-1 text-xs text-slate-400">
+              We couldn't send the OTP email. Click <strong className="text-white">Resend OTP</strong> below to try again.
+              Check your spam/promotions folder if it still doesn't arrive.
+            </p>
+          </div>
+        )}
+
+        {/* Spam notice */}
+        <div className="mt-3 rounded-xl border border-white/5 bg-slate-800/40 px-4 py-2.5">
+          <p className="text-xs text-slate-500">
+            📬 Don't see the email? Check your <strong className="text-slate-400">Spam</strong> or <strong className="text-slate-400">Promotions</strong> folder.
+          </p>
+        </div>
 
         <form onSubmit={handleVerify} className="mt-8 space-y-6">
           {/* Email field (editable if not pre-filled) */}
