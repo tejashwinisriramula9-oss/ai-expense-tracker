@@ -14,20 +14,33 @@ import errorHandler from './middleware/errorHandler.js'
 const app = express()
 
 // Allow requests from the configured frontend URL(s).
-// In production FRONTEND_URL is set to the Vercel deployment URL.
-// We also always allow localhost:5173 for local dev.
+// Covers:
+//   - exact FRONTEND_URL (production Vercel URL)
+//   - all Vercel preview URLs  (*.vercel.app)
+//   - localhost for local dev
 const allowedOrigins = [
-  config.frontendUrl,
+  config.frontendUrl,          // e.g. https://ai-expense-tracker.vercel.app
   'http://localhost:5173',
   'http://localhost:5174',
+  'http://localhost:3000',
 ].filter(Boolean)
+
+// Also allow any *.vercel.app subdomain (preview deployments)
+const vercelPreviewRegex = /^https:\/\/[a-z0-9-]+-[a-z0-9]+-[a-z0-9]+\.vercel\.app$/
+
+function isOriginAllowed(origin) {
+  if (!origin) return true                                    // curl / Postman / Render health checks
+  if (allowedOrigins.includes(origin)) return true           // exact match
+  if (origin.endsWith('.vercel.app')) return true            // all vercel.app subdomains
+  if (vercelPreviewRegex.test(origin)) return true           // vercel preview pattern
+  return false
+}
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (curl, Postman, Render health checks)
-      if (!origin) return callback(null, true)
-      if (allowedOrigins.some((o) => origin.startsWith(o))) return callback(null, true)
+      if (isOriginAllowed(origin)) return callback(null, true)
+      console.warn(`[CORS] Blocked origin: ${origin}`)
       callback(new Error(`CORS: origin ${origin} not allowed`))
     },
     credentials: true,
@@ -63,6 +76,15 @@ mongoose
 
 app.get('/', (req, res) => {
   res.json({ status: 'alive', message: 'AI Enhanced Expense Tracker API' })
+})
+
+// Health check endpoint — test at /health in browser
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    environment: config.nodeEnv,
+    timestamp: new Date().toISOString(),
+  })
 })
 
 app.use('/auth', authRoutes)

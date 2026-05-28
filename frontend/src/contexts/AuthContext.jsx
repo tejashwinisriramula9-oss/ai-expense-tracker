@@ -39,7 +39,7 @@ export function AuthProvider({ children }) {
       navigate('/dashboard')
       toast.success('Welcome back!')
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Login failed')
+      toast.error(error.userMessage || error.response?.data?.message || 'Login failed')
     } finally {
       setLoading(false)
     }
@@ -52,7 +52,7 @@ export function AuthProvider({ children }) {
       toast.success('Account created successfully. Please login.')
       navigate('/login')
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Registration failed')
+      toast.error(error.userMessage || error.response?.data?.message || 'Registration failed')
     } finally {
       setLoading(false)
     }
