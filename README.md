@@ -183,8 +183,6 @@ PORT=5001
 ## Savings Goals
 ![Savings Goals](./goals.png)
 
-## Savings Insights Dashboard
-![Savings Insights Dashboard](./expense-tracker-ui.png)
 
 ---
 
