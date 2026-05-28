@@ -59,6 +59,12 @@ export function AuthProvider({ children }) {
       toast.success('Welcome back!')
       navigate('/dashboard')
     } catch (error) {
+      // Handle unverified email — redirect to verify page
+      if (error.response?.data?.needsVerification) {
+        toast.error('Please verify your email before logging in.')
+        navigate('/verify-email', { state: { email: error.response.data.email } })
+        return
+      }
       toast.error(error.userMessage || 'Login failed')
     } finally {
       setAuthLoading(false)
@@ -68,9 +74,9 @@ export function AuthProvider({ children }) {
   const register = async (name, email, password) => {
     setAuthLoading(true)
     try {
-      await api.post('/auth/register', { name, email, password })
-      toast.success('Account created! Please sign in.')
-      navigate('/login')
+      const response = await api.post('/auth/register', { name, email, password })
+      toast.success('Account created! Check your email for the verification code.')
+      navigate('/verify-email', { state: { email: response.data.email || email } })
     } catch (error) {
       toast.error(error.userMessage || 'Registration failed')
     } finally {

@@ -6,8 +6,11 @@ export const config = {
   jwtSecret:   process.env.JWT_SECRET   || 'your_secret_key_here',
   port:        process.env.PORT         || 5000,
   nodeEnv:     process.env.NODE_ENV     || 'development',
-  // FRONTEND_URL is set in Render env vars to your Vercel URL
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+
+  // Email (Gmail SMTP) — set in Render environment variables
+  emailUser: process.env.EMAIL_USER || '',
+  emailPass: process.env.EMAIL_PASS || '',
 }
 
 export default config
