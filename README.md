@@ -135,8 +135,8 @@ npm run server
 Create a `.env` file inside the backend folder and add the following:
 
 ```env
-MONGO_URI=mongodb://tejashwini19:tejashwini1919@ac-n7bjxq2-shard-00-00.9tdzi7c.mongodb.net:27017,ac-n7bjxq2-shard-00-01.9tdzi7c.mongodb.net:27017,ac-n7bjxq2-shard-00-02.9tdzi7c.mongodb.net:27017/expense_tracker?ssl=true&replicaSet=atlas-bb95ab-shard-0&authSource=admin&appName=Cluster0
-JWT_SECRET=ai_expense_tracker_secret_key
+MONGO_URI=your_mongodb_connection
+JWT_SECRET=your_secret_key
 PORT=5001
 ```
 
