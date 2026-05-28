@@ -6,71 +6,90 @@ import toast from 'react-hot-toast'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const navigate = useNavigate()
-  const [user, setUser] = useState(null)
-  const [token, setToken] = useState(localStorage.getItem('expense-token') || '')
-  const [loading, setLoading] = useState(false)
+  const navigate  = useNavigate()
+  const savedToken = localStorage.getItem('expense-token') || ''
 
+  const [user,    setUser]    = useState(null)
+  const [token,   setToken]   = useState(savedToken)
+  // ── KEY FIX: start loading=true when a token exists so ProtectedRoute
+  //    waits for fetchProfile to complete before deciding to redirect.
+  const [loading, setLoading] = useState(!!savedToken)
+  // Separate flag for login/register button spinner
+  const [authLoading, setAuthLoading] = useState(false)
+
+  // On mount: if we have a saved token, restore the auth header and fetch profile
   useEffect(() => {
     if (token) {
       api.defaults.headers.common.Authorization = `Bearer ${token}`
       fetchProfile()
     }
-  }, [token])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // run once on mount only
 
   const fetchProfile = async () => {
     try {
       const response = await api.get('/auth/profile')
       setUser(response.data)
     } catch (error) {
-      console.error(error)
-      logout()
-    }
-  }
-
-  const login = async (email, password) => {
-    setLoading(true)
-    try {
-      const response = await api.post('/auth/login', { email, password })
-      const accessToken = response.data.token
-      localStorage.setItem('expense-token', accessToken)
-      setToken(accessToken)
-      setUser(response.data.user)
-      navigate('/dashboard')
-      toast.success('Welcome back!')
-    } catch (error) {
-      toast.error(error.userMessage || error.response?.data?.message || 'Login failed')
+      console.error('[AuthContext] fetchProfile failed:', error.userMessage || error.message)
+      // Token is invalid/expired — clear it
+      clearAuth()
     } finally {
+      // Always stop the initial loading spinner
       setLoading(false)
     }
   }
 
-  const register = async (name, email, password) => {
-    setLoading(true)
-    try {
-      await api.post('/auth/register', { name, email, password })
-      toast.success('Account created successfully. Please login.')
-      navigate('/login')
-    } catch (error) {
-      toast.error(error.userMessage || error.response?.data?.message || 'Registration failed')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const logout = () => {
+  const clearAuth = () => {
     localStorage.removeItem('expense-token')
     delete api.defaults.headers.common.Authorization
     setUser(null)
     setToken('')
+  }
+
+  const login = async (email, password) => {
+    setAuthLoading(true)
+    try {
+      const response = await api.post('/auth/login', { email, password })
+      const accessToken = response.data.token
+      localStorage.setItem('expense-token', accessToken)
+      api.defaults.headers.common.Authorization = `Bearer ${accessToken}`
+      setToken(accessToken)
+      setUser(response.data.user)
+      toast.success('Welcome back!')
+      navigate('/dashboard')
+    } catch (error) {
+      toast.error(error.userMessage || 'Login failed')
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const register = async (name, email, password) => {
+    setAuthLoading(true)
+    try {
+      await api.post('/auth/register', { name, email, password })
+      toast.success('Account created! Please sign in.')
+      navigate('/login')
+    } catch (error) {
+      toast.error(error.userMessage || 'Registration failed')
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const logout = () => {
+    clearAuth()
+    toast.success('Signed out.')
     navigate('/login')
   }
 
   const updateUser = (updatedUser) => setUser((prev) => ({ ...prev, ...updatedUser }))
 
   const value = useMemo(
-    () => ({ user, token, loading, login, register, logout, updateUser }),
-    [user, token, loading],
+    () => ({ user, token, loading, authLoading, login, register, logout, updateUser }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [user, token, loading, authLoading],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
