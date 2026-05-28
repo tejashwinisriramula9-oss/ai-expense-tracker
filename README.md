@@ -1,8 +1,30 @@
-# AI Enhanced Expense Tracker
+# AI Expense Tracker
 
-A full-stack fintech dashboard — React + Vite frontend, Node/Express backend, MongoDB Atlas.
+AI-powered Expense Tracker and Financial Management Dashboard built using React.js, Node.js, Express.js, and MongoDB.
 
----
+## Features
+
+- AI Expense Analysis
+- Expense Tracking
+- Budget Management
+- Savings Goal Tracking
+- Financial Dashboard Analytics
+- Secure Authentication
+- Responsive Mobile UI
+
+## Live Demo
+
+https://ai-expense-tracker-two-gamma.vercel.app
+
+## SEO Keywords
+
+AI Expense Tracker  
+Expense Tracker App  
+Finance Dashboard  
+React Expense Tracker  
+Node.js Finance App  
+MongoDB Expense Tracker
+
 
 ## Project Structure
 
