@@ -8,10 +8,11 @@ import {
   otpExpiryDate,
   sendVerificationEmail,
   sendPasswordResetEmail,
+  isEmailConfigured,
 } from '../utils/email.js'
 
 // ── helpers ───────────────────────────────────────────────────
-const emailConfigured = () => Boolean(config.emailUser && config.emailPass)
+const emailConfigured = () => isEmailConfigured()
 
 // ── REGISTER ─────────────────────────────────────────────────
 export const register = async (req, res) => {

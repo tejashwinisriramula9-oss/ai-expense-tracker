@@ -8,7 +8,20 @@ export const config = {
   nodeEnv:     process.env.NODE_ENV     || 'development',
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
 
-  // Email (Gmail SMTP) — set in Render environment variables
+  // ── Email provider A: Brevo / custom SMTP (recommended) ──
+  // Set these in Render for reliable delivery:
+  //   SMTP_HOST = smtp-relay.brevo.com
+  //   SMTP_PORT = 587
+  //   SMTP_USER = your-brevo-login@email.com
+  //   SMTP_PASS = your-brevo-smtp-key
+  //   EMAIL_FROM = noreply@yourdomain.com  (optional, defaults to SMTP_USER)
+  smtpHost:  process.env.SMTP_HOST  || '',
+  smtpPort:  process.env.SMTP_PORT  || '587',
+  smtpUser:  process.env.SMTP_USER  || '',
+  smtpPass:  process.env.SMTP_PASS  || '',
+  emailFrom: process.env.EMAIL_FROM || '',
+
+  // ── Email provider B: Gmail App Password (fallback) ──────
   emailUser: process.env.EMAIL_USER || '',
   emailPass: process.env.EMAIL_PASS || '',
 }
