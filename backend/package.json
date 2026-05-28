@@ -4,15 +4,14 @@
   "description": "AI Enhanced Expense Tracker Backend",
   "main": "server.js",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "node ./utils/devStart.js"
   },
-  "keywords": [
-    "express",
-    "mongodb",
-    "api"
-  ],
+  "keywords": ["express", "mongodb", "api"],
   "author": "",
   "license": "ISC",
   "dependencies": {

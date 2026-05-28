@@ -4,7 +4,6 @@ services:
     runtime: node
     region: singapore
     plan: free
-    rootDir: backend
     buildCommand: npm install
     startCommand: npm start
     envVars:
@@ -12,7 +11,7 @@ services:
         value: production
       - key: PORT
         value: 10000
-      # Set these in the Render dashboard — do NOT hardcode secrets here:
-      # MONGODB_URI   → your Atlas connection string
-      # JWT_SECRET    → a long random string
-      # FRONTEND_URL  → https://your-app.vercel.app
+      # Add these in Render Dashboard → Environment:
+      # MONGODB_URI  = your full Atlas connection string
+      # JWT_SECRET   = a long random secret string
+      # FRONTEND_URL = https://your-app.vercel.app
