@@ -1,18 +1,7 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-import crypto from 'crypto'
 import { User } from '../models/User.js'
 import { config } from '../config/config.js'
-import {
-  generateOTP,
-  otpExpiryDate,
-  sendVerificationEmail,
-  sendPasswordResetEmail,
-  isEmailConfigured,
-} from '../utils/email.js'
-
-// ── helpers ───────────────────────────────────────────────────
-const emailConfigured = () => isEmailConfigured()
 
 // ── REGISTER ─────────────────────────────────────────────────
 export const register = async (req, res) => {
@@ -31,120 +20,22 @@ export const register = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 12)
-    const otp    = generateOTP()
-    const expiry = otpExpiryDate()
-
     const user = new User({
-      name:            name.trim(),
-      email:           email.toLowerCase(),
-      password:        hashedPassword,
-      isVerified:      false,
-      verificationOTP: otp,
-      otpExpiry:       expiry,
+      name:     name.trim(),
+      email:    email.toLowerCase(),
+      password: hashedPassword,
     })
     await user.save()
 
-    // Send OTP email if email service is configured
-    if (emailConfigured()) {
-      try {
-        await sendVerificationEmail(user.email, user.name, otp)
-        console.log(`[AUTH] Verification OTP sent to ${user.email}`)
-      } catch (emailErr) {
-        console.error('[AUTH] Failed to send verification email:', emailErr.message)
-        // Account is created but email failed — tell the frontend so user can resend
-        return res.status(201).json({
-          message: 'Account created but verification email failed to send. Use "Resend OTP" on the next page.',
-          userId: user._id,
-          email: user.email,
-          emailError: true,
-        })
-      }
-    } else {
-      console.warn(`[AUTH] Email not configured — skipping send. OTP for ${user.email}: ${otp}`)
-    }
-
+    const token = jwt.sign({ userId: user._id }, config.jwtSecret, { expiresIn: '90d' })
     res.status(201).json({
-      message: 'Account created. Please check your email for the verification OTP.',
-      userId: user._id,
-      email: user.email,
-      // In dev without email configured, return OTP so you can test
-      ...(config.nodeEnv !== 'production' && !emailConfigured() ? { devOtp: otp } : {}),
+      message: 'Account created successfully.',
+      token,
+      user: { id: user._id, name: user.name, email: user.email },
     })
   } catch (error) {
     console.error('[AUTH] register error:', error.message)
     res.status(500).json({ message: 'Registration failed.', error: error.message })
-  }
-}
-
-// ── VERIFY OTP ────────────────────────────────────────────────
-export const verifyOTP = async (req, res) => {
-  try {
-    const { email, otp } = req.body
-    if (!email || !otp) {
-      return res.status(400).json({ message: 'Email and OTP are required.' })
-    }
-
-    const user = await User.findOne({ email: email.toLowerCase() })
-    if (!user) {
-      return res.status(404).json({ message: 'User not found.' })
-    }
-    if (user.isVerified) {
-      return res.status(400).json({ message: 'Email already verified.' })
-    }
-    if (!user.verificationOTP || user.verificationOTP !== String(otp).trim()) {
-      return res.status(400).json({ message: 'Invalid OTP.' })
-    }
-    if (!user.otpExpiry || new Date() > user.otpExpiry) {
-      return res.status(400).json({ message: 'OTP has expired. Please request a new one.' })
-    }
-
-    user.isVerified      = true
-    user.verificationOTP = null
-    user.otpExpiry       = null
-    await user.save()
-
-    res.json({ message: 'Email verified successfully. You can now log in.' })
-  } catch (error) {
-    console.error('[AUTH] verifyOTP error:', error.message)
-    res.status(500).json({ message: 'Verification failed.', error: error.message })
-  }
-}
-
-// ── RESEND OTP ────────────────────────────────────────────────
-export const resendOTP = async (req, res) => {
-  try {
-    const { email } = req.body
-    if (!email) return res.status(400).json({ message: 'Email is required.' })
-
-    const user = await User.findOne({ email: email.toLowerCase() })
-    if (!user) return res.status(404).json({ message: 'User not found.' })
-    if (user.isVerified) return res.status(400).json({ message: 'Email already verified.' })
-
-    const otp    = generateOTP()
-    const expiry = otpExpiryDate()
-    user.verificationOTP = otp
-    user.otpExpiry       = expiry
-    await user.save()
-
-    if (emailConfigured()) {
-      try {
-        await sendVerificationEmail(user.email, user.name, otp)
-        console.log(`[AUTH] Resent OTP to ${user.email}`)
-      } catch (emailErr) {
-        console.error('[AUTH] Failed to resend OTP:', emailErr.message)
-        return res.status(500).json({ message: 'Failed to send OTP email. Please try again in a moment.' })
-      }
-    } else {
-      console.warn(`[AUTH] Email not configured — OTP for ${user.email}: ${otp}`)
-    }
-
-    res.json({
-      message: 'New OTP sent to your email.',
-      ...(config.nodeEnv !== 'production' && !emailConfigured() ? { devOtp: otp } : {}),
-    })
-  } catch (error) {
-    console.error('[AUTH] resendOTP error:', error.message)
-    res.status(500).json({ message: 'Failed to resend OTP.', error: error.message })
   }
 }
 
@@ -166,20 +57,11 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials.' })
     }
 
-    // Block login if email not verified (only when email service is configured)
-    if (!user.isVerified && emailConfigured()) {
-      return res.status(403).json({
-        message: 'Please verify your email before logging in.',
-        needsVerification: true,
-        email: user.email,
-      })
-    }
-
     const token = jwt.sign({ userId: user._id }, config.jwtSecret, { expiresIn: '90d' })
     res.json({
       message: 'Login successful',
       token,
-      user: { id: user._id, name: user.name, email: user.email, isVerified: user.isVerified },
+      user: { id: user._id, name: user.name, email: user.email },
     })
   } catch (error) {
     console.error('[AUTH] login error:', error.message)
@@ -187,129 +69,15 @@ export const login = async (req, res) => {
   }
 }
 
-// ── FORGOT PASSWORD ───────────────────────────────────────────
-export const forgotPassword = async (req, res) => {
-  try {
-    const { email } = req.body
-    if (!email) return res.status(400).json({ message: 'Email is required.' })
-
-    const user = await User.findOne({ email: email.toLowerCase() })
-    // Always return success to prevent email enumeration
-    if (!user) {
-      return res.json({ message: 'If that email exists, a reset link has been sent.' })
-    }
-
-    const token  = crypto.randomBytes(32).toString('hex')
-    const expiry = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
-
-    user.resetPasswordToken  = token
-    user.resetPasswordExpiry = expiry
-    await user.save()
-
-    const resetUrl = `${config.frontendUrl}/reset-password?token=${token}&email=${encodeURIComponent(user.email)}`
-
-    if (emailConfigured()) {
-      try {
-        await sendPasswordResetEmail(user.email, user.name, resetUrl)
-        console.log(`[AUTH] Password reset email sent to ${user.email}`)
-      } catch (emailErr) {
-        console.error('[AUTH] Failed to send reset email:', emailErr.message)
-        return res.status(500).json({ message: 'Failed to send reset email. Please try again.' })
-      }
-    } else {
-      console.warn('[AUTH] Email not configured — reset URL:', resetUrl)
-    }
-
-    res.json({
-      message: 'If that email exists, a reset link has been sent.',
-      ...(config.nodeEnv !== 'production' && !emailConfigured() ? { devResetUrl: resetUrl } : {}),
-    })
-  } catch (error) {
-    console.error('[AUTH] forgotPassword error:', error.message)
-    res.status(500).json({ message: 'Failed to process request.', error: error.message })
-  }
-}
-
-// ── RESET PASSWORD ────────────────────────────────────────────
-export const resetPassword = async (req, res) => {
-  try {
-    const { email, token, newPassword } = req.body
-    if (!email || !token || !newPassword) {
-      return res.status(400).json({ message: 'Email, token and new password are required.' })
-    }
-    if (newPassword.length < 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters.' })
-    }
-
-    const user = await User.findOne({ email: email.toLowerCase() })
-    if (!user || user.resetPasswordToken !== token) {
-      return res.status(400).json({ message: 'Invalid or expired reset link.' })
-    }
-    if (!user.resetPasswordExpiry || new Date() > user.resetPasswordExpiry) {
-      return res.status(400).json({ message: 'Reset link has expired. Please request a new one.' })
-    }
-
-    user.password            = await bcrypt.hash(newPassword, 12)
-    user.resetPasswordToken  = null
-    user.resetPasswordExpiry = null
-    user.isVerified          = true  // auto-verify on password reset
-    await user.save()
-
-    res.json({ message: 'Password reset successfully. You can now log in.' })
-  } catch (error) {
-    console.error('[AUTH] resetPassword error:', error.message)
-    res.status(500).json({ message: 'Password reset failed.', error: error.message })
-  }
-}
-
 // ── GET PROFILE ───────────────────────────────────────────────
 export const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.userId).select('-password -verificationOTP -resetPasswordToken')
+    const user = await User.findById(req.userId).select('-password')
     if (!user) return res.status(404).json({ message: 'User not found.' })
     res.json(user)
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch profile.', error: error.message })
   }
-}
-
-// ── EMAIL STATUS (diagnostic — no auth required) ──────────────
-export const emailStatus = async (_req, res) => {
-  const { smtpHost, smtpPort, smtpUser, smtpPass, emailUser, emailPass, emailFrom } = config
-  const hasBrevo = Boolean(smtpHost && smtpUser && smtpPass)
-  const hasGmail = Boolean(emailUser && emailPass)
-  const provider = hasBrevo ? 'brevo' : hasGmail ? 'gmail' : 'none'
-
-  const status = {
-    provider,
-    configured: hasBrevo || hasGmail,
-    smtp_host:  smtpHost  || null,
-    smtp_port:  smtpPort  || null,
-    smtp_user:  smtpUser  || null,
-    smtp_pass:  smtpPass  ? `set (${smtpPass.length} chars)` : null,
-    email_user: emailUser || null,
-    email_pass: emailPass ? `set (${emailPass.replace(/\s+/g,'').length} chars)` : null,
-    email_from: emailFrom || null,
-    sender:     emailFrom || smtpUser || emailUser || null,
-  }
-
-  // Live SMTP verify
-  if (status.configured) {
-    try {
-      const { verifyEmailTransporter } = await import('../utils/email.js')
-      const ok = await verifyEmailTransporter()
-      status.smtp_verified = ok
-      status.message = ok ? 'SMTP connection verified — emails will send' : 'SMTP verify failed — check Render logs'
-    } catch (e) {
-      status.smtp_verified = false
-      status.message = e.message
-    }
-  } else {
-    status.smtp_verified = false
-    status.message = 'No email provider configured'
-  }
-
-  res.json(status)
 }
 
 // ── UPDATE PROFILE ────────────────────────────────────────────
@@ -333,9 +101,10 @@ export const updateProfile = async (req, res) => {
     await user.save()
     res.json({
       message: 'Profile updated successfully.',
-      user: { id: user._id, name: user.name, email: user.email, isVerified: user.isVerified },
+      user: { id: user._id, name: user.name, email: user.email },
     })
   } catch (error) {
     res.status(500).json({ message: 'Failed to update profile.', error: error.message })
   }
 }
+

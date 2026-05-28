@@ -11,10 +11,7 @@ export function AuthProvider({ children }) {
 
   const [user,    setUser]    = useState(null)
   const [token,   setToken]   = useState(savedToken)
-  // ── KEY FIX: start loading=true when a token exists so ProtectedRoute
-  //    waits for fetchProfile to complete before deciding to redirect.
   const [loading, setLoading] = useState(!!savedToken)
-  // Separate flag for login/register button spinner
   const [authLoading, setAuthLoading] = useState(false)
 
   // On mount: if we have a saved token, restore the auth header and fetch profile
@@ -59,12 +56,6 @@ export function AuthProvider({ children }) {
       toast.success('Welcome back!')
       navigate('/dashboard')
     } catch (error) {
-      // Handle unverified email — redirect to verify page
-      if (error.response?.data?.needsVerification) {
-        toast.error('Please verify your email before logging in.')
-        navigate('/verify-email', { state: { email: error.response.data.email } })
-        return  // don't re-throw — handled by navigation
-      }
       toast.error(error.userMessage || 'Login failed')
       throw error  // re-throw so Login.jsx can check error.isWakeUp
     } finally {
@@ -76,13 +67,13 @@ export function AuthProvider({ children }) {
     setAuthLoading(true)
     try {
       const response = await api.post('/auth/register', { name, email, password })
-      const emailError = response.data.emailError === true
-      if (emailError) {
-        toast.error('Account created but email failed. Use Resend OTP on the next page.')
-      } else {
-        toast.success('Account created! Check your email for the verification code.')
-      }
-      navigate('/verify-email', { state: { email: response.data.email || email, emailError } })
+      const accessToken = response.data.token
+      localStorage.setItem('expense-token', accessToken)
+      api.defaults.headers.common.Authorization = `Bearer ${accessToken}`
+      setToken(accessToken)
+      setUser(response.data.user)
+      toast.success('Account created successfully!')
+      navigate('/dashboard')
     } catch (error) {
       toast.error(error.userMessage || 'Registration failed')
       throw error  // re-throw so Signup.jsx can check error.isWakeUp

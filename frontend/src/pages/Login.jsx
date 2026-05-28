@@ -133,15 +133,7 @@ export default function Login() {
 
           {/* Password + visibility toggle */}
           <label className="block">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-300">Password</span>
-              <Link
-                to="/forgot-password"
-                className="text-xs text-indigo-400 hover:text-indigo-300 transition"
-              >
-                Forgot password?
-              </Link>
-            </div>
+            <span className="text-sm text-slate-300">Password</span>
             <div className="relative mt-3">
               <input
                 type={showPass ? 'text' : 'password'}
