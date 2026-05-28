@@ -273,6 +273,45 @@ export const getProfile = async (req, res) => {
   }
 }
 
+// ── EMAIL STATUS (diagnostic — no auth required) ──────────────
+export const emailStatus = async (_req, res) => {
+  const { smtpHost, smtpPort, smtpUser, smtpPass, emailUser, emailPass, emailFrom } = config
+  const hasBrevo = Boolean(smtpHost && smtpUser && smtpPass)
+  const hasGmail = Boolean(emailUser && emailPass)
+  const provider = hasBrevo ? 'brevo' : hasGmail ? 'gmail' : 'none'
+
+  const status = {
+    provider,
+    configured: hasBrevo || hasGmail,
+    smtp_host:  smtpHost  || null,
+    smtp_port:  smtpPort  || null,
+    smtp_user:  smtpUser  || null,
+    smtp_pass:  smtpPass  ? `set (${smtpPass.length} chars)` : null,
+    email_user: emailUser || null,
+    email_pass: emailPass ? `set (${emailPass.replace(/\s+/g,'').length} chars)` : null,
+    email_from: emailFrom || null,
+    sender:     emailFrom || smtpUser || emailUser || null,
+  }
+
+  // Live SMTP verify
+  if (status.configured) {
+    try {
+      const { verifyEmailTransporter } = await import('../utils/email.js')
+      const ok = await verifyEmailTransporter()
+      status.smtp_verified = ok
+      status.message = ok ? 'SMTP connection verified — emails will send' : 'SMTP verify failed — check Render logs'
+    } catch (e) {
+      status.smtp_verified = false
+      status.message = e.message
+    }
+  } else {
+    status.smtp_verified = false
+    status.message = 'No email provider configured'
+  }
+
+  res.json(status)
+}
+
 // ── UPDATE PROFILE ────────────────────────────────────────────
 export const updateProfile = async (req, res) => {
   try {

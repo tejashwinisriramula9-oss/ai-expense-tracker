@@ -8,6 +8,7 @@ import {
   resetPassword,
   getProfile,
   updateProfile,
+  emailStatus,
 } from '../controllers/authController.js'
 import authMiddleware from '../middleware/auth.js'
 
@@ -20,6 +21,7 @@ router.post('/verify-otp',       verifyOTP)
 router.post('/resend-otp',       resendOTP)
 router.post('/forgot-password',  forgotPassword)
 router.post('/reset-password',   resetPassword)
+router.get('/email-status',      emailStatus)   // diagnostic — no auth
 
 // Protected routes
 router.get('/profile',  authMiddleware, getProfile)
